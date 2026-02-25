@@ -7,7 +7,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        project: [Project1, Project2, Project3]  # Update with your actual project names
+        project: [Project1, Project2]  # Update with your actual project names
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
