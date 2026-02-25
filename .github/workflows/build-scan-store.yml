@@ -17,7 +17,7 @@ jobs:
       - run: dotnet build --configuration Release --no-restore
       - run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
@@ -80,13 +80,13 @@ jobs:
       - name: Compress Archive
         run: tar -czf build-artifacts-${{ github.run_number }}.tar.gz artifacts/
       - name: Upload Compressed Archive
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-archive-${{ github.run_number }}
           path: build-artifacts-${{ github.run_number }}.tar.gz
           retention-days: 90
       - name: Upload All Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: final-artifacts-${{ github.run_number }}
           path: artifacts/
