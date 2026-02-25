@@ -46,7 +46,7 @@ jobs:
         working-directory: ${{ matrix.project }}
 
       - name: Snyk Security Check
-        uses: snyk/actions/github@v2.0.0
+        uses: snyk/actions/github@v2
         with:
           command: test
           args: --all-projects
