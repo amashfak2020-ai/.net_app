@@ -1,0 +1,93 @@
+name: Comprehensive Build, Scan and Artifact Pipeline
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/TestResults/'
+          retention-days: 30
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-coverage
+          path: '**/coverage.cobertura.xml'
+          retention-days: 30
+  security-scan:
+    name: Code Quality and Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+      - uses: github/codeql-action/init@v2
+        with:
+          languages: csharp
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x'
+      - run: dotnet restore && dotnet build --configuration Release
+      - uses: github/codeql-action/analyze@v2
+  store-artifacts:
+    name: Store and Archive Artifacts
+    runs-on: ubuntu-latest
+    needs: [build, security-scan]
+    if: always()
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download Test Results
+        uses: actions/download-artifact@v3
+        with:
+          name: test-results
+          path: artifacts/test-results
+      - name: Download Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: code-coverage
+          path: artifacts/code-coverage
+      - name: Create Metadata
+        run: |
+          mkdir -p artifacts/metadata
+          cat > artifacts/metadata/build-info.json << EOF
+          {
+            "build_number": "${{ github.run_number }}",
+            "build_id": "${{ github.run_id }}",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref }}",
+            "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          }
+          EOF
+      - name: Create Manifest
+        run: |
+          mkdir -p artifacts/manifest
+          find artifacts -type f > artifacts/manifest/files.txt
+      - name: Compress Archive
+        run: tar -czf build-artifacts-${{ github.run_number }}.tar.gz artifacts/
+      - name: Upload Compressed Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-archive-${{ github.run_number }}
+          path: build-artifacts-${{ github.run_number }}.tar.gz
+          retention-days: 90
+      - name: Upload All Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-artifacts-${{ github.run_number }}
+          path: artifacts/
+          retention-days: 90
