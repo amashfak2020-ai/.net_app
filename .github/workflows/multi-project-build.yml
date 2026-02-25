@@ -1,1 +1,57 @@
-name: Multi-Project .NET Build\n\non: [push, pull_request]\n\njobs:\n  build:\n    runs-on: windows-latest\n    strategy:\n      matrix:\n        project: [Project1, Project2, Project3]  # Update with your actual project names\n    steps:\n      - name: Checkout Repository\n        uses: actions/checkout@v2\n\n      - name: Setup .NET\n        uses: actions/setup-dotnet@v2\n        with:\n          dotnet-version: '6.0.x'  # Specify your .NET version\n\n      - name: Restore NuGet Packages\n        run: dotnet restore ${{ matrix.project }}\n\n      - name: Build\n        run: dotnet build --no-restore ${{ matrix.project }}\n\n      - name: Run Unit Tests\n        run: dotnet test ${{ matrix.project }}\n\n      - name: SonarQube Scan\n        env:\n          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}\n        run: dotnet sonarscanner begin /k:"my_project_key" /d:sonar.login=$SONAR_TOKEN\n\n      - name: Build with Sonar\n        run: dotnet build --no-restore ${{ matrix.project }}\n\n      - name: End SonarQube Scan\n        env:\n          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}\n        run: dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN\n\n      - name: Snyk Security Check\n        uses: snyk/actions/github@v2.0.0\n        with:\n          command: test\n          args: --all-projects\n        env:\n          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}\n\n      - name: JFrog Upload\n        run: jfrog rt u "${{ matrix.project }}/*.dll" "my-repo/path/to/upload/" --url="<JFROG_URL>" --user="<JFROG_USER>" --password="${{ secrets.JFROG_PASSWORD }}"\n
+name: Multi-Project .NET Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        project: [Project1, Project2, Project3]  # Update with your actual project names
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '6.0.x'  # Specify your .NET version
+
+      - name: Restore NuGet Packages
+        run: dotnet restore ${{ matrix.project }}.csproj
+        working-directory: ${{ matrix.project }}
+
+      - name: Build
+        run: dotnet build --no-restore ${{ matrix.project }}.csproj
+        working-directory: ${{ matrix.project }}
+
+      - name: Run Unit Tests
+        run: dotnet test --no-build ${{ matrix.project }}.csproj
+        working-directory: ${{ matrix.project }}
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner begin /k:"my_project_key" /d:sonar.login=$SONAR_TOKEN
+        working-directory: ${{ matrix.project }}
+
+      - name: Build with Sonar
+        run: dotnet build --no-restore ${{ matrix.project }}.csproj
+        working-directory: ${{ matrix.project }}
+
+      - name: End SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.login=$SONAR_TOKEN
+        working-directory: ${{ matrix.project }}
+
+      - name: Snyk Security Check
+        uses: snyk/actions/github@v2.0.0
+        with:
+          command: test
+          args: --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: JFrog Upload
+        run: jfrog rt u "${{ matrix.project }}/*.dll" "my-repo/path/to/upload/" --url="<JFROG_URL>" --user="<JFROG_USER>" --password="${{ secrets.JFROG_PASSWORD }}"
